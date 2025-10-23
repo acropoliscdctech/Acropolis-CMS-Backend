@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 
 interface IFaculty extends mongoose.Document {
   name: string;
@@ -9,6 +10,7 @@ interface IFaculty extends mongoose.Document {
   designation: string;
   createdAt: Date;
   updatedAt: Date;
+  comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 const FacultySchema = new mongoose.Schema<IFaculty>(
@@ -26,6 +28,21 @@ const FacultySchema = new mongoose.Schema<IFaculty>(
   },
   { timestamps: true }
 );
+
+FacultySchema.pre<IFaculty>("save", async function (next) {
+  if (!this.isModified("password")) {
+    return next();
+  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+FacultySchema.methods.comparePassword = async function (
+  candidatePassword: string
+) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
 const Faculty = mongoose.model<IFaculty>("Faculty", FacultySchema);
 
