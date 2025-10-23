@@ -36,4 +36,8 @@ app.use(
   })
 );
 
+// routes
+import healthRouter from "./routes/health.route";
+app.use("/api/health", healthRouter);
+
 export default app;
