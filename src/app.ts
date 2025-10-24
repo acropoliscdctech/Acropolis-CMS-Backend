@@ -6,7 +6,11 @@ import morgan from "morgan";
 
 // dotenv config
 import dotenv from "dotenv";
-dotenv.config();
+
+const envFile =
+  process.env.NODE_ENV === "production" ? "production" : "development";
+
+dotenv.config({ path: `.env.${envFile}.local` });
 
 // express app
 const app = express();
