@@ -5,7 +5,7 @@ import { authenticateFaculty } from "../middlewares/auth.middleware";
 const router = Router();
 
 router.post("/login", login);
-router.post("logout", logout);
-router.post("/check-auth", authenticateFaculty, checkAuth);
+router.post("/logout", logout);
+router.get("/check-auth", authenticateFaculty, checkAuth);
 
 export default router;
