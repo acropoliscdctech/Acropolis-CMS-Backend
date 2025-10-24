@@ -6,6 +6,7 @@ import { connectDb } from "../config/database";
 import { AcademicProgram } from "../models/academicProgram.model";
 import { Department } from "../models/department.model";
 import { Faculty } from "../models/faculty.model";
+import { Subject } from "../models/subject.model";
 
 const readJsonFile = async (filePath: string) => {
   const fileData = await fs.readFile(
@@ -21,6 +22,7 @@ const importData = async () => {
     const programsData = await readJsonFile("program.json");
     const departmentsData = await readJsonFile("department.json");
     const facultyData = await readJsonFile("faculty.json");
+    const subjectsData = await readJsonFile("subject.json");
 
     // Upsert Programs
     for (const program of programsData) {
@@ -40,6 +42,41 @@ const importData = async () => {
       );
     }
     console.log("Departments upserted!");
+
+    for (const subject of subjectsData) {
+      const dept = await Department.findOne({ shortName: subject.department });
+      const prog = await AcademicProgram.findOne({
+        shortName: subject.program,
+      });
+
+      if (!dept) {
+        console.warn(
+          `Skipping subject "${subject.title}": Department "${subject.department}" not found.`
+        );
+        continue;
+      }
+      if (!prog) {
+        console.warn(
+          `Skipping subject "${subject.title}": Program "${subject.program}" not found.`
+        );
+        continue;
+      }
+
+      const subjectToSave = {
+        title: subject.title,
+        subjectCode: subject.subjectCode,
+        semester: subject.semester,
+        department: dept._id,
+        program: prog._id,
+      };
+
+      await Subject.updateOne(
+        { subjectCode: subject.subjectCode },
+        { $set: subjectToSave },
+        { upsert: true }
+      );
+    }
+    console.log("Subjects upserted!");
 
     for (const faculty of facultyData) {
       const existingFaculty = await Faculty.findOne({
