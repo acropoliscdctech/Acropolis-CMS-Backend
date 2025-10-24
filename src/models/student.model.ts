@@ -2,9 +2,9 @@ import mongoose from "mongoose";
 
 interface IStudent extends mongoose.Document {
   name: string;
-  rollNumber: string;
+  enrollment: string;
   email: string;
-  scholarId: string;
+  scholarNo: string;
   section: string;
   semester: number;
   year: number;
@@ -19,9 +19,9 @@ interface IStudent extends mongoose.Document {
 const StudentSchema = new mongoose.Schema<IStudent>(
   {
     name: { type: String, required: true, trim: true },
-    rollNumber: { type: String, required: true, unique: true, trim: true },
+    enrollment: { type: String, required: true, unique: true, trim: true },
     email: { type: String, required: true, unique: true, trim: true },
-    scholarId: { type: String, required: true, unique: true, trim: true },
+    scholarNo: { type: String, required: true, unique: true, trim: true },
     section: { type: String, required: true, trim: true },
     semester: { type: Number, required: true },
     year: { type: Number, required: true },
