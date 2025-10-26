@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 interface IClass extends mongoose.Document {
-  subject: string;
+  subject: mongoose.Types.ObjectId;
   faculty: mongoose.Types.ObjectId;
   section: string;
   academicYear: string;
@@ -15,7 +15,11 @@ interface IClass extends mongoose.Document {
 
 const ClassSchema = new mongoose.Schema<IClass>(
   {
-    subject: { type: String, required: true, trim: true },
+    subject: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      trim: true,
+    },
     faculty: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Faculty",
