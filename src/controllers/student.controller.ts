@@ -53,8 +53,8 @@ export const findStudentsByFilters = async (req: Request, res: Response) => {
 
     // --- 3. Execute Query ---
     const students = await Student.find(studentFilters)
-      .select("name rollNumber email section") // Select fields needed for the roster
-      .sort({ rollNumber: 1 }); // Sort by roll number
+      .select("name enrollment email section") // Select fields needed for the roster
+      .sort({ enrollment: 1 }); // Sort by roll number
 
     // --- 4. Return Results ---
     if (!students || students.length === 0) {
