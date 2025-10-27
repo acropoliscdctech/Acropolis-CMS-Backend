@@ -4,7 +4,6 @@ import { seedDepartments } from "./utils/department.seed";
 import { seedFaculties } from "./utils/faculty.seed";
 import { seedSubjects } from "./utils/subject.seed";
 import { seedStudents } from "./utils/student.seed";
-import { seedClasses } from "./utils/class.seed";
 import { seedAttendanceSummaries } from "./utils/summary.seed";
 import { connectDb } from "../config/database";
 
@@ -13,7 +12,6 @@ import { Department } from "../models/department.model";
 import { Faculty } from "../models/faculty.model";
 import { Subject } from "../models/subject.model";
 import { Student } from "../models/student.model";
-import { Class } from "../models/class.model";
 
 const importData = async () => {
   try {
@@ -23,7 +21,6 @@ const importData = async () => {
     await seedFaculties();
     await seedSubjects();
     await seedStudents();
-    await seedClasses();
     await seedAttendanceSummaries();
 
     console.log("Seeding script finished!");
@@ -42,7 +39,6 @@ const deleteData = async () => {
     await Faculty.deleteMany({});
     await Subject.deleteMany({});
     await Student.deleteMany({});
-    await Class.deleteMany({});
     console.log("Data deletion script finished!");
     process.exit(0);
   } catch (err) {
