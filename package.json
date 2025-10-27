@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start": "cross-env NODE_ENV=production node dist/server.js",
-    "dev": "cross-env NODE_ENV=development nodemon --exec ts-node src/server.ts",
+    "dev": "cross-env NODE_ENV=development nodemon --exec ts-node server.ts",
     "build": "rimraf dist && tsc",
     "seed:import:demo": "cross-env NODE_ENV=development ts-node src/seed/seed.ts --import",
     "seed:delete:demo": "cross-env NODE_ENV=development ts-node src/seed/seed.ts --delete",
