@@ -17,7 +17,12 @@ const app = express();
 
 // middlewares
 app.use(helmet());
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
 app.use(cookieParser());
 app.use(express.json());
 
@@ -43,9 +48,13 @@ app.use(
 // routes
 import healthRouter from "./routes/health.route";
 import authRouter from "./routes/auth.route";
-import classRouter from "./routes/class.route";
+import studentRouter from "./routes/student.route";
+// import classRouter from "./routes/class.route";
+import attendanceRouter from "./routes/attendance.route";
 app.use("/api/health", healthRouter);
 app.use("/api/auth", authRouter);
-app.use("/api/classes", classRouter);
+app.use("/api/students", studentRouter);
+// app.use("/api/classes", classRouter);
+app.use("/api/attendance", attendanceRouter);
 
 export default app;
