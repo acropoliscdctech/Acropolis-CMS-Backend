@@ -51,12 +51,10 @@ import authRouter from "./routes/auth.route";
 import studentRouter from "./routes/student.route";
 // import classRouter from "./routes/class.route";
 import attendanceRouter from "./routes/attendance.route";
-import historyRouter from "./routes/history.route";
 app.use("/api/health", healthRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/students", studentRouter);
 // app.use("/api/classes", classRouter);
 app.use("/api/attendance", attendanceRouter);
-app.use("/api/history", historyRouter);
 
 export default app;
