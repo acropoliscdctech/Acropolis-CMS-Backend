@@ -36,7 +36,6 @@ const StudentSchema = new mongoose.Schema<IStudent>(
       required: true,
     },
     status: { type: String, enum: ["active", "inactive"], default: "active" },
-    enrolledClasses: [{ type: mongoose.Schema.Types.ObjectId, ref: "Class" }],
   },
   { timestamps: true }
 );

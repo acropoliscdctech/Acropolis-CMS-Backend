@@ -3,7 +3,9 @@ import mongoose from "mongoose";
 interface IAttendanceSummary extends mongoose.Document {
   _id: string; // custom id : "studentId_classId"
   student: mongoose.Types.ObjectId;
-  class: mongoose.Types.ObjectId;
+  semester: number;
+  program: mongoose.Types.ObjectId;
+  department: mongoose.Types.ObjectId;
   presentCount: number;
   absentCount: number;
   totalClasses: number;
@@ -19,11 +21,11 @@ const AttendanceSummarySchema = new mongoose.Schema<IAttendanceSummary>(
       ref: "Student",
       required: true,
     },
-    class: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Class",
+    semester: {
+      type: Number,
       required: true,
     },
+
     presentCount: { type: Number, default: 0 },
     absentCount: { type: Number, default: 0 },
     totalClasses: { type: Number, default: 0 },

@@ -2,10 +2,14 @@ import mongoose from "mongoose";
 
 interface IAttendanceRecord extends mongoose.Document {
   student: mongoose.Types.ObjectId;
-  class: mongoose.Types.ObjectId;
   date: Date;
   status: string;
   markedBy: mongoose.Types.ObjectId;
+  program: mongoose.Types.ObjectId;
+  department: mongoose.Types.ObjectId;
+  section: mongoose.Types.ObjectId;
+  subject: mongoose.Types.ObjectId;
+  semester: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,11 +19,6 @@ const AttendanceRecordSchema = new mongoose.Schema<IAttendanceRecord>(
     student: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Student",
-      required: true,
-    },
-    class: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Class",
       required: true,
     },
     date: {

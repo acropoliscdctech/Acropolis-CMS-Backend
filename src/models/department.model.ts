@@ -8,15 +8,13 @@ interface IDepartment extends mongoose.Document {
   updatedAt: Date;
 }
 
-const DepartmentSchema = new mongoose.Schema<IDepartment>({
-  name: { type: String, required: true ,unique: true},
-  shortName: { type: String, required: true ,unique: true},
-  hod: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Faculty",
-    default: null,
+const DepartmentSchema = new mongoose.Schema<IDepartment>(
+  {
+    name: { type: String, required: true, unique: true },
+    shortName: { type: String, required: true, unique: true },
   },
-},{timestamps: true});
+  { timestamps: true }
+);
 
 const Department = mongoose.model<IDepartment>("Department", DepartmentSchema);
 
