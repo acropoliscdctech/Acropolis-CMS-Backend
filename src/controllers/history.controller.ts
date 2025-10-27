@@ -1,14 +1,15 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 
-// Import your custom utilities
 import ApiResponse from '../utils/response';
 import ApiError from '../utils/error';
 import asyncHandler from '../utils/async-handler';
 
-// Import Models
 import { IFaculty } from '../models/faculty.model';
-import {AttendanceRecord} from '../models/attendanceRecord.model';
+import { AttendanceRecord } from '../models/attendanceRecord.model';
+import { AcademicProgram } from '../models/academicProgram.model';
+import { Department } from '../models/department.model';
+import { Subject } from '../models/subject.model';
 
 interface AuthenticatedRequest extends Request {
   user?: IFaculty;
@@ -29,6 +30,7 @@ export const getFacultyHistoryFilters = asyncHandler(
         $match: { markedBy: facultyId },
       },
       {
+        // Group by all the class identifiers
         $group: {
           _id: {
             program: '$program',
@@ -64,15 +66,12 @@ export const getFacultyHistoryFilters = asyncHandler(
           as: 'subject',
         },
       },
-      // Note: Add more $lookups if 'semester' and 'section' are collections
       {
         $project: {
           _id: 0,
-          // Extract the first (and only) element from the populated arrays
           program: { $arrayElemAt: ['$program', 0] },
           department: { $arrayElemAt: ['$department', 0] },
           subject: { $arrayElemAt: ['$subject', 0] },
-          // Pass through the original IDs if they aren't populated
           semester: '$_id.semester',
           section: '$_id.section',
         },
@@ -88,24 +87,35 @@ export const getFacultyHistoryFilters = asyncHandler(
     return res
       .status(200)
       .json(
-        new ApiResponse(200, {filters}, 'History filters retrieved successfully')
+        new ApiResponse(200, { filters }, 'History filters retrieved successfully')
       );
   }
 );
 
 export const getHistorySummary = asyncHandler(
   async (req: Request, res: Response) => {
-    // 1. Get and validate query parameters
-    const { program, department, semester, section, subject } = req.query;
+    // 1. Get and validate query parameters (now as strings)
+    const {
+      programShortName,
+      deptShortName,
+      subjectCode,
+      semester,
+      section,
+    } = req.query;
 
-    // --- FIX: Robust validation for all query parameters ---
-    const filters = { program, department, semester, section, subject };
+    const filters = {
+      programShortName,
+      deptShortName,
+      subjectCode,
+      semester,
+      section,
+    };
     const requiredFields = [
-      'program',
-      'department',
+      'programShortName',
+      'deptShortName',
+      'subjectCode',
       'semester',
       'section',
-      'subject',
     ];
 
     for (const field of requiredFields) {
@@ -119,24 +129,54 @@ export const getHistorySummary = asyncHandler(
           `Query parameter '${field}' must be a string.`
         );
       }
-      if (!mongoose.Types.ObjectId.isValid(value)) {
-        throw new ApiError(
-          400,
-          `Query parameter '${field}' is not a valid ObjectId.`
-        );
-      }
     }
 
-    // 2. Build the match query (now we know they are valid strings)
+    // 2. Look up reference IDs
+    const program = await AcademicProgram.findOne({
+      shortName: programShortName as string,
+    })
+      .select('_id')
+      .lean();
+    const department = await Department.findOne({
+      shortName: deptShortName as string,
+    })
+      .select('_id')
+      .lean();
+    const subject = await Subject.findOne({
+      subjectCode: subjectCode as string,
+    })
+      .select('_id')
+      .lean();
+
+    if (!program) {
+      throw new ApiError(404, `Program not found: ${programShortName}`);
+    }
+    if (!department) {
+      throw new ApiError(404, `Department not found: ${deptShortName}`);
+    }
+    if (!subject) {
+      throw new ApiError(404, `Subject not found: ${subjectCode}`);
+    }
+
+    // Validate and parse semester
+    const semesterNum = parseInt(semester as string, 10);
+    if (isNaN(semesterNum)) {
+      throw new ApiError(
+        400,
+        'Query parameter "semester" must be a valid number.'
+      );
+    }
+
+    // 3. Build the match query
     const matchQuery: { [key: string]: any } = {
-      program: new mongoose.Types.ObjectId(program as string),
-      department: new mongoose.Types.ObjectId(department as string),
-      semester: new mongoose.Types.ObjectId(semester as string),
-      section: new mongoose.Types.ObjectId(section as string),
-      subject: new mongoose.Types.ObjectId(subject as string),
+      program: program._id,
+      department: department._id,
+      subject: subject._id,
+      semester: semesterNum,
+      section: section as string,
     };
 
-    // 3. Aggregate to group by date
+    // 4. Aggregate to group by date
     const summary = await AttendanceRecord.aggregate([
       {
         $match: matchQuery,
@@ -162,16 +202,16 @@ export const getHistorySummary = asyncHandler(
       },
     ]);
 
-    // 4. Handle "Not Found"
+    // 5. Handle "Not Found"
     if (!summary || summary.length === 0) {
       throw new ApiError(404, 'No summary found for these filters.');
     }
 
-    // 5. Send success response
+    // 6. Send success response
     return res
       .status(200)
       .json(
-        new ApiResponse(200, {summary}, 'History summary retrieved successfully')
+        new ApiResponse(200, { summary }, 'History summary retrieved successfully')
       );
   }
 );
@@ -180,21 +220,28 @@ export const getHistorySessionDetails = asyncHandler(
   async (req: Request, res: Response) => {
     // 1. Get and validate query parameters
     const {
-      program,
-      department,
+      programShortName,
+      deptShortName,
+      subjectCode,
       semester,
       section,
-      subject,
       date,
     } = req.query;
 
-    const filters = { program, department, semester, section, subject, date };
+    const filters = {
+      programShortName,
+      deptShortName,
+      subjectCode,
+      semester,
+      section,
+      date,
+    };
     const requiredFields = [
-      'program',
-      'department',
+      'programShortName',
+      'deptShortName',
+      'subjectCode',
       'semester',
       'section',
-      'subject',
       'date',
     ];
 
@@ -209,55 +256,86 @@ export const getHistorySessionDetails = asyncHandler(
           `Query parameter '${field}' must be a string.`
         );
       }
-      // Validate IDs, but skip 'date' field
-      if (field !== 'date' && !mongoose.Types.ObjectId.isValid(value)) {
-        throw new ApiError(
-          400,
-          `Query parameter '${field}' is not a valid ObjectId.`
-        );
-      }
-      // Basic validation for date string
-      if (field === 'date' && !/\d{4}-\d{2}-\d{2}/.test(value)) {
-        throw new ApiError(
-          400,
-          `Query parameter 'date' must be in YYYY-MM-DD format.`
-        );
-      }
     }
 
-    // 2. Build the match query
+    // 2. Look up reference IDs
+    const program = await AcademicProgram.findOne({
+      shortName: programShortName as string,
+    })
+      .select('_id')
+      .lean();
+    const department = await Department.findOne({
+      shortName: deptShortName as string,
+    })
+      .select('_id')
+      .lean();
+    const subject = await Subject.findOne({
+      subjectCode: subjectCode as string,
+    })
+      .select('_id')
+      .lean();
+
+    if (!program) {
+      throw new ApiError(404, `Program not found: ${programShortName}`);
+    }
+    if (!department) {
+      throw new ApiError(404, `Department not found: ${deptShortName}`);
+    }
+    if (!subject) {
+      throw new ApiError(404, `Subject not found: ${subjectCode}`);
+    }
+
+    // Validate and parse semester
+    const semesterNum = parseInt(semester as string, 10);
+    if (isNaN(semesterNum)) {
+      throw new ApiError(
+        400,
+        'Query parameter "semester" must be a valid number.'
+      );
+    }
+
+    // Basic validation for date string
+    if (date && !/\d{4}-\d{2}-\d{2}/.test(date as string)) {
+      throw new ApiError(
+        400,
+        `Query parameter 'date' must be in YYYY-MM-DD format.`
+      );
+    }
+
+    // 3. Build the match query
     const matchQuery: { [key: string]: any } = {
-      program: new mongoose.Types.ObjectId(program as string),
-      department: new mongoose.Types.ObjectId(department as string),
-      semester: new mongoose.Types.ObjectId(semester as string),
-      section: new mongoose.Types.ObjectId(section as string),
-      subject: new mongoose.Types.ObjectId(subject as string),
+      program: program._id,
+      department: department._id,
+      subject: subject._id,
+      semester: semesterNum,
+      section: section as string,
     };
 
-    // 3. Add date range to match query
+    // 4. Add date range to match query
     const startDate = new Date(date as string);
     startDate.setUTCHours(0, 0, 0, 0);
     const endDate = new Date(date as string);
     endDate.setUTCHours(23, 59, 59, 999);
     matchQuery.date = { $gte: startDate, $lte: endDate };
 
-    // 4. Find records
+    // 5. Find records
     const records = await AttendanceRecord.find(matchQuery)
       .populate('student', 'name enrollment scholarNo')
-      .sort({ 'student.name': 1 });
+      .sort({ 'student.name': 1 })
+      .lean();
 
-    // 5. Handle "Not Found"
+    // 6. Handle "Not Found"
     if (!records || records.length === 0) {
       throw new ApiError(404, 'No session details found for this date.');
     }
 
-    // 6. Send success response
+    // 7. Send success response
     return res
       .status(200)
       .json(
         new ApiResponse(
           200,
-          {records},
+          { records },
           'Session details retrieved successfully'
         )
       );
