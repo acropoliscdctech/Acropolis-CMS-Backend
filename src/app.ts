@@ -43,7 +43,9 @@ app.use(
 // routes
 import healthRouter from "./routes/health.route";
 import authRouter from "./routes/auth.route";
+import classRouter from "./routes/class.route";
 app.use("/api/health", healthRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/classes", classRouter);
 
 export default app;
