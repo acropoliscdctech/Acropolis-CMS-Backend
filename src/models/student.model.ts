@@ -11,7 +11,6 @@ interface IStudent extends mongoose.Document {
   department: mongoose.Types.ObjectId;
   program: mongoose.Types.ObjectId;
   status: string;
-  enrolledClasses: mongoose.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
