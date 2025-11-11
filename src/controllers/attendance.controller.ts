@@ -1,106 +1,104 @@
-// /server/src/controllers/attendanceController.ts
 import { Request, Response } from "express";
+import asyncHandler from "../utils/async-handler";
+import ApiResponse from "../utils/response";
+import ApiError from "../utils/error";
 import mongoose from "mongoose";
 import { AttendanceRecord } from "../models/attendanceRecord.model";
 import { AttendanceSummary } from "../models/attendanceSummary.model";
 import { AcademicProgram } from "../models/academicProgram.model";
 import { Department } from "../models/department.model";
 import { Subject } from "../models/subject.model";
+import { TimeSlot } from "../models/timeSlot.model";
 import { Student } from "../models/student.model";
 
-// Interface for authenticated requests
 interface AuthenticatedRequest extends Request {
-  user?: { id: string }; // From your auth middleware
+  user?: { id: string };
 }
 
-// Interface for the expected attendance data per student
 interface AttendanceSubmission {
   studentId: string;
   status: "present" | "absent";
 }
 
-// Interface for the expected request body
 interface MarkAttendanceBody {
   programShortName: string;
   deptShortName: string;
   section: string;
   subjectCode: string;
-  semester: number; // Semester number is crucial now
+  semester: number;
   date: string;
+  timeSlotId: string; // <-- 2. Add timeSlotId
   attendanceData: AttendanceSubmission[];
 }
 
-export const markAttendance = async (
-  req: AuthenticatedRequest,
-  res: Response
-) => {
-  const facultyId = req.user?.id;
-  const {
-    programShortName,
-    deptShortName,
-    section,
-    subjectCode,
-    semester,
-    date,
-    attendanceData,
-  } = req.body as MarkAttendanceBody;
-
-  // --- 1. Basic Validations ---
-  if (!facultyId) {
-    return res.status(401).json({ message: "Faculty ID not found in token" });
-  }
-  if (
-    !programShortName ||
-    !deptShortName ||
-    !section ||
-    !subjectCode ||
-    !semester ||
-    !date ||
-    !attendanceData
-  ) {
-    return res
-      .status(400)
-      .json({ message: "Missing required fields in request body" });
-  }
-  if (!Array.isArray(attendanceData) || attendanceData.length === 0) {
-    return res
-      .status(400)
-      .json({ message: "Attendance data is missing or empty" });
-  }
-  const attendanceDate = new Date(date);
-  if (isNaN(attendanceDate.getTime())) {
-    return res
-      .status(400)
-      .json({ message: "Invalid Date format (YYYY-MM-DD expected)" });
-  }
-  // Set time to UTC midnight for consistent date matching
-  attendanceDate.setUTCHours(0, 0, 0, 0);
-
-  try {
-    // --- 2. Look up Reference IDs ---
-    const program = await AcademicProgram.findOne({
-      shortName: programShortName,
-    }).select("_id");
-    const department = await Department.findOne({
-      shortName: deptShortName,
-    }).select("_id");
-    const subject = await Subject.findOne({ subjectCode: subjectCode }).select(
-      "_id"
-    );
-
-    if (!program || !department || !subject) {
-      return res
-        .status(404)
-        .json({ message: "Program, Department, or Subject not found" });
+export const markAttendance = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    // --- 1. Get Data & Validate User ---
+    const facultyId = req.user?.id;
+    if (!facultyId) {
+      throw new ApiError(401, "Faculty ID not found in token");
     }
 
-    // --- 3. Prepare Bulk Operations ---
-    const recordBulkOps: any[] = []; // For AttendanceRecord
-    const summaryBulkOps: any[] = []; // For AttendanceSummary (semester-based)
+    const {
+      programShortName,
+      deptShortName,
+      section,
+      subjectCode,
+      semester,
+      date,
+      timeSlotId,
+      attendanceData,
+    } = req.body as MarkAttendanceBody;
 
-    // --- 4. Process Submitted Attendance Data ---
+    // --- 2. Full Body Validation ---
+    if (
+      [
+        programShortName,
+        deptShortName,
+        section,
+        subjectCode,
+        semester,
+        date,
+        timeSlotId,
+      ].some((field) => !field)
+    ) {
+      throw new ApiError(400, "Missing required fields in request body");
+    }
+    if (!Array.isArray(attendanceData) || attendanceData.length === 0) {
+      throw new ApiError(400, "Attendance data is missing or empty");
+    }
+    if (!mongoose.Types.ObjectId.isValid(timeSlotId)) {
+      throw new ApiError(400, "Invalid TimeSlot ID format");
+    }
+
+    const attendanceDate = new Date(date);
+    if (isNaN(attendanceDate.getTime())) {
+      throw new ApiError(400, "Invalid Date format (YYYY-MM-DD expected)");
+    }
+    attendanceDate.setUTCHours(0, 0, 0, 0);
+
+    // --- 3. Look up All Reference IDs Concurrently ---
+    const [program, department, subject, timeSlot] = await Promise.all([
+      AcademicProgram.findOne({ shortName: programShortName })
+        .select("_id")
+        .lean(),
+      Department.findOne({ shortName: deptShortName }).select("_id").lean(),
+      Subject.findOne({ subjectCode: subjectCode }).select("_id").lean(),
+      TimeSlot.findById(timeSlotId).select("_id").lean(),
+    ]);
+
+    // Check if any reference is missing
+    if (!program) throw new ApiError(404, "Program not found");
+    if (!department) throw new ApiError(404, "Department not found");
+    if (!subject) throw new ApiError(404, "Subject not found");
+    if (!timeSlot) throw new ApiError(404, "TimeSlot not found");
+
+    // --- 4. Prepare Bulk Operations ---
+    const recordBulkOps: any[] = [];
+    const summaryUpdatesMap = new Map<string, any>();
+    const countedForTotalClasses = new Set<string>();
+
     for (const record of attendanceData) {
-      // Validate student ID and status
       if (
         !mongoose.Types.ObjectId.isValid(record.studentId) ||
         !["present", "absent"].includes(record.status)
@@ -108,31 +106,25 @@ export const markAttendance = async (
         console.warn(
           `Invalid data skipped: studentId=${record.studentId}, status=${record.status}`
         );
-        continue; // Skip invalid records
+        continue;
       }
-      // Optional: Verify student exists and matches filters (program, dept, section, semester)
-      // const studentExists = await Student.findOne({ _id: record.studentId, program: program._id, /* other filters */ });
-      // if (!studentExists) { continue; }
 
-      // --- a) Prepare AttendanceRecord Upsert ---
       recordBulkOps.push({
         updateOne: {
           filter: {
-            // Unique key for a record
             student: record.studentId,
             subject: subject._id,
             date: attendanceDate,
+            timeSlot: timeSlot._id,
             program: program._id,
             department: department._id,
             section: section,
             semester: semester,
           },
           update: {
-            // Data to set/update
             $set: {
               status: record.status,
               markedBy: facultyId,
-              // Ensure all fields are set on insert
               student: record.studentId,
               subject: subject._id,
               date: attendanceDate,
@@ -140,188 +132,143 @@ export const markAttendance = async (
               department: department._id,
               section: section,
               semester: semester,
+              timeSlot: timeSlot._id,
             },
           },
-          upsert: true, // Create if not exists, update if exists
+          upsert: true,
         },
       });
 
-      // --- b) Prepare AttendanceSummary Upsert/Increment ---
-      const summaryId = `${record.studentId}_${program._id}_${semester}`; // Unique key for summary
-      const incrementField = `${record.status}Count`; // e.g., "presentCount"
+      const summaryId = `${record.studentId}_${program._id}_${semester}`;
+      const incrementField = `${record.status}Count`;
 
-      // Need student's primary department for the summary document
-      // Ideally, fetch student once or ensure it's passed, but for simplicity:
-      // const student = await Student.findById(record.studentId).select('department');
-      // const studentDeptId = student?.department;
-      // For now, let's assume we can query it later or that the class dept is sufficient context
-      // If the summary MUST store the student's *own* department, you'll need to fetch it here.
-      // Let's store the department context of the class in the summary for now.
-      const studentDeptId = department._id; // Using class context department ID
+      const studentDeptId = department._id;
 
-      summaryBulkOps.push({
-        updateOne: {
+      if (!summaryUpdatesMap.has(summaryId)) {
+        summaryUpdatesMap.set(summaryId, {
           filter: { _id: summaryId },
           update: {
-            // Increment counts. $inc handles non-existing fields (sets to 1).
-            // How to handle totalClasses correctly on upsert/update needs care.
-            // We should only increment totalClasses ONCE per session, even if status changes.
-            // This simple $inc might double-count if faculty resubmits.
-            // A better approach is needed for robust resubmission handling.
-            // For now, focusing on initial marking:
-            $inc: { [incrementField]: 1, totalClasses: 1 },
+            $inc: { totalClasses: 0 },
             $setOnInsert: {
-              // Fields to set only when CREATING the summary
               _id: summaryId,
               student: record.studentId,
               semester: semester,
               program: program._id,
-              department: studentDeptId, // Student's primary dept (or class context dept)
-              presentCount: 0, // Initialize explicitly
-              absentCount: 0,
-              lateCount: 0,
-              excusedCount: 0,
+              department: studentDeptId,
             },
           },
-          upsert: true, // Create summary if it doesn't exist
-        },
-      });
-    } // End loop through attendanceData
+          upsert: true,
+        });
+      }
 
-    // --- 5. Execute Bulk Operations ---
+      const updateOp = summaryUpdatesMap.get(summaryId).update;
+      updateOp.$inc[incrementField] = (updateOp.$inc[incrementField] || 0) + 1;
+
+      if (!countedForTotalClasses.has(record.studentId)) {
+        updateOp.$inc.totalClasses = (updateOp.$inc.totalClasses || 0) + 1;
+        countedForTotalClasses.add(record.studentId);
+      }
+    }
+
     let recordResult, summaryResult;
+    const finalSummaryBulkOps = Array.from(summaryUpdatesMap.values()).map(
+      (op) => ({ updateOne: op })
+    );
+
     if (recordBulkOps.length > 0) {
       recordResult = await AttendanceRecord.bulkWrite(recordBulkOps, {
         ordered: false,
-      }); // unordered allows continuing on error
+      });
     }
-    if (summaryBulkOps.length > 0) {
-      // **Important Note on totalClasses Increment:**
-      // The simple `$inc: { totalClasses: 1 }` above will increment `totalClasses`
-      // every time this runs, even if it's an update to change a status (e.g., absent -> present).
-      // A more robust solution requires checking if an AttendanceRecord for this student/subject/date
-      // already exists *before* deciding to increment totalClasses. This adds complexity.
-      // For this version, we'll proceed with the simple increment, assuming initial marking.
-      summaryResult = await AttendanceSummary.bulkWrite(summaryBulkOps, {
+    if (finalSummaryBulkOps.length > 0) {
+      summaryResult = await AttendanceSummary.bulkWrite(finalSummaryBulkOps, {
         ordered: false,
       });
     }
 
-    res.status(201).json({
-      message: `Attendance marked for ${attendanceData.length} students.`,
-      recordResult, // Optional: return bulk results for debugging
-      summaryResult, // Optional: return bulk results for debugging
-    });
-  } catch (error: any) {
-    console.error("Error marking attendance:", error);
-    res.status(500).json({
-      message: "Server error marking attendance",
-      error: error.message,
-    });
+    return res.status(201).json(
+      new ApiResponse(
+        201,
+        {
+          marked: attendanceData.length,
+          recordResult,
+          summaryResult,
+        },
+        "Attendance marked successfully"
+      )
+    );
   }
-};
+);
 
-export const getAttendanceDetailsForSession = async (
-  req: AuthenticatedRequest,
-  res: Response
-) => {
-  const {
-    programShortName,
-    deptShortName,
-    section,
-    subjectCode,
-    semester, // Get semester from query
-    date, // Get date from query
-  } = req.query;
-  const facultyId = req.user?.id; // Optional: For authorization checks if needed later
+export const getAttendanceSummaryForStudents = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { programShortName, deptShortName, year, semester, section } =
+      req.query;
 
-  // --- 1. Validations ---
-  if (
-    !programShortName ||
-    !deptShortName ||
-    !section ||
-    !subjectCode ||
-    !semester ||
-    !date
-  ) {
-    return res
-      .status(400)
-      .json({
-        message:
-          "Missing required query parameters: programShortName, deptShortName, section, subjectCode, semester, date",
-      });
-  }
-
-  const semesterNum = parseInt(semester as string);
-  if (isNaN(semesterNum)) {
-    return res.status(400).json({ message: "Invalid semester provided." });
-  }
-
-  let attendanceDate: Date;
-  try {
-    attendanceDate = new Date((date as string) + "T00:00:00.000Z"); // UTC Midnight
-    if (isNaN(attendanceDate.getTime())) throw new Error();
-  } catch (e) {
-    return res
-      .status(400)
-      .json({ message: "Invalid Date format (YYYY-MM-DD expected)" });
-  }
-
-  // Define start and end of the specified day in UTC
-  const startOfDay = new Date(attendanceDate);
-  startOfDay.setUTCHours(0, 0, 0, 0);
-  const endOfDay = new Date(attendanceDate);
-  endOfDay.setUTCHours(23, 59, 59, 999);
-
-  try {
-    // --- 2. Look up Reference IDs ---
+    if (!programShortName || !deptShortName || !year || !semester || !section) {
+      throw new ApiError(
+        400,
+        "Missing required query parameters: programShortName, deptShortName, year, semester, and section"
+      );
+    }
+    const yearNum = parseInt(year as string);
+    const semesterNum = parseInt(semester as string);
+    if (isNaN(yearNum) || isNaN(semesterNum)) {
+      throw new ApiError(400, "Invalid year or semester provided.");
+    }
     const program = await AcademicProgram.findOne({
       shortName: programShortName as string,
     }).select("_id");
     const department = await Department.findOne({
       shortName: deptShortName as string,
     }).select("_id");
-    const subject = await Subject.findOne({
-      subjectCode: subjectCode as string,
-    }).select("_id");
-
-    if (!program || !department || !subject) {
-      return res
-        .status(404)
-        .json({
-          message:
-            "Program, Department, or Subject not found for the given codes/names",
-        });
+    if (!program || !department) {
+      throw new ApiError(404, "Program or Department not found");
     }
-
-    // --- 3. Build AttendanceRecord Query ---
-    const recordFilters: mongoose.FilterQuery<any> = {
+    const studentFilters: mongoose.FilterQuery<any> = {
       program: program._id,
       department: department._id,
-      section: section as string,
-      subject: subject._id,
+      year: yearNum,
       semester: semesterNum,
-      date: { $gte: startOfDay, $lte: endOfDay }, // Find records within the specified day
+      section: section as string,
+      status: "active",
     };
-
-    // --- 4. Execute Query ---
-    const attendanceDetails = await AttendanceRecord.find(recordFilters)
-      .populate({
-        path: "student", // Populate student details from the reference
-        select: "name rollNumber section", // Select desired student fields
-      })
-      .sort({ "student.rollNumber": 1 }); // Sort by student roll number
-
-    if (!attendanceDetails || attendanceDetails.length === 0) {
-      // Return empty array if no records found for these filters on this date
-      return res.status(200).json([]);
+    const students = await Student.find(studentFilters)
+      .select("name rollNumber email section")
+      .lean();
+    if (!students || students.length === 0) {
+      return res
+        .status(200)
+        .json(new ApiResponse(200, [], "No students found"));
     }
-
-    res.status(200).json(attendanceDetails);
-  } catch (error: any) {
-    console.error("Error fetching attendance details:", error);
-    res
-      .status(500)
-      .json({ message: "Server error fetching details", error: error.message });
+    const studentIds = students.map((s) => s._id);
+    const summaries = await AttendanceSummary.find({
+      student: { $in: studentIds },
+      semester: semesterNum,
+    }).lean();
+    const summaryMap = new Map(summaries.map((s) => [s.student.toString(), s]));
+    const results = students.map((student) => {
+      const summary = summaryMap.get(student._id.toString());
+      let presentCount = 0;
+      let totalClasses = 0;
+      let percentage = 0;
+      if (summary) {
+        presentCount = summary.presentCount || 0;
+        totalClasses = summary.totalClasses || 0;
+        if (totalClasses > 0) {
+          percentage = (presentCount / totalClasses) * 100;
+        }
+      }
+      return {
+        ...student,
+        presentCount,
+        absentCount: summary?.absentCount || 0,
+        totalClasses,
+        percentage: parseFloat(percentage.toFixed(2)),
+      };
+    });
+    return res
+      .status(200)
+      .json(new ApiResponse(200, { attendanceSummaries: results }, "Success"));
   }
-};
+);
