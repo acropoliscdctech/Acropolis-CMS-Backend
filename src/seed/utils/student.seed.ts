@@ -45,7 +45,6 @@ export const seedStudents = async () => {
           status: student.status || "active", // Default to active
           department: dept._id, // Use the found ObjectId
           program: prog._id, // Use the found ObjectId
-          enrolledClasses: [], // Initially empty
         });
         console.log(`Created new student: ${student.enrollment}`);
       } catch (error: any) {

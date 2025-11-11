@@ -1,5 +1,4 @@
 import { Faculty } from "../../models/faculty.model";
-import { Department } from "../../models/department.model";
 import { readJsonFile } from "./readJson";
 
 export const seedFaculties = async () => {
@@ -10,17 +9,8 @@ export const seedFaculties = async () => {
       username: faculty.username,
     });
     if (!existingFaculty) {
-      const dept = await Department.findOne({
-        shortName: faculty.department,
-      });
-      if (dept) {
-        await Faculty.create({ ...faculty, department: dept._id });
-        console.log(`Created new faculty: ${faculty.username}`);
-      } else {
-        console.warn(
-          `Skipping faculty: Dept "${faculty.department}" not found.`
-        );
-      }
+      await Faculty.create({ ...faculty });
+      console.log(`Created new faculty: ${faculty.username}`);
     } else {
       console.log(`Skipping existing faculty: ${faculty.username}`);
     }

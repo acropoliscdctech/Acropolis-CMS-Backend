@@ -1,12 +1,13 @@
 import mongoose from "mongoose";
-import { Student } from "../../models/student.model";
-import { AttendanceSummary } from "../../models/attendanceSummary.model";
+import { Student } from "../../models/student.model"; // Adjust path
+import { AttendanceSummary } from "../../models/attendanceSummary.model"; //
 
 export const seedAttendanceSummaries = async (): Promise<void> => {
-  console.log("Seeding initial Attendance Summaries...");
+  console.log("Seeding initial Semester-based Attendance Summaries...");
 
+  // Find all active students and select fields needed for the summary key
   const activeStudents = await Student.find({ status: "active" }).select(
-    "_id enrolledClasses"
+    "_id program department semester" // Select program, department, and semester
   );
 
   if (!activeStudents || activeStudents.length === 0) {
@@ -17,46 +18,54 @@ export const seedAttendanceSummaries = async (): Promise<void> => {
   let summariesCreated = 0;
   let summariesSkipped = 0;
 
+  // Iterate through each active student
   for (const student of activeStudents) {
-    if (!student.enrolledClasses || student.enrolledClasses.length === 0) {
+    // Validate required fields
+    if (!student.program || !student.department || !student.semester) {
+      console.warn(
+        `Skipping summary for student ${student._id}: Missing program, department, or semester info.`
+      );
       continue;
     }
 
-    for (const classId of student.enrolledClasses) {
-      const summaryId = `${student._id}_${classId}`;
+    // Construct the unique _id for the semester summary document
+    const summaryId = `${student._id}_${student.program}_${student.semester}`;
 
-      const summaryData = {
-        _id: summaryId,
-        student: student._id,
-        class: classId,
-        presentCount: 0,
-        absentCount: 0,
-        lateCount: 0,
-        excusedCount: 0,
-        totalClasses: 0,
-      };
+    // Prepare the data for the summary document (counts default to 0)
+    const summaryData = {
+      _id: summaryId,
+      student: student._id,
+      program: student.program, // Store program ID
+      department: student.department, // Store student's primary department ID
+      semester: student.semester, // Store semester number
+      presentCount: 0,
+      absentCount: 0,
+      // lateCount: 0,    // Only include if tracking these
+      // excusedCount: 0, // Only include if tracking these
+      totalClasses: 0,
+    };
 
-      try {
-        const result = await AttendanceSummary.updateOne(
-          { _id: summaryId },
-          { $setOnInsert: summaryData },
-          { upsert: true }
-        );
+    // Use updateOne with upsert: true to create only if it doesn't exist
+    try {
+      const result = await AttendanceSummary.updateOne(
+        { _id: summaryId }, // Find condition based on unique ID
+        { $setOnInsert: summaryData }, // Set these fields only on insert
+        { upsert: true } // Create if doesn't exist
+      );
 
-        if (result.upsertedCount > 0) {
-          summariesCreated++;
-        } else {
-          summariesSkipped++;
-        }
-      } catch (error: any) {
-        console.error(
-          `Error upserting summary for student ${student._id}, class ${classId}: ${error.message}`
-        );
+      if (result.upsertedCount > 0) {
+        summariesCreated++;
+      } else {
+        summariesSkipped++; // Already existed
       }
+    } catch (error: any) {
+      console.error(
+        `Error upserting summary for student ${student._id}, semester ${student.semester}: ${error.message}`
+      );
     }
-  }
+  } // End loop through students
 
   console.log(
-    `Attendance Summary seeding complete. Created: ${summariesCreated}, Skipped (already existed): ${summariesSkipped}`
+    `Semester Attendance Summary seeding complete. Created: ${summariesCreated}, Skipped (already existed): ${summariesSkipped}`
   );
 };
