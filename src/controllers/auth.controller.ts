@@ -29,7 +29,6 @@ export const login = asyncHandler(async (req, res) => {
   const token = generateToken(String(user._id), "faculty");
   res.cookie("token", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
   });
   return res
     .status(200)
