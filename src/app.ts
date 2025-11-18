@@ -50,20 +50,20 @@ import healthRouter from "./routes/health.route";
 import authRouter from "./routes/auth.route";
 import studentRouter from "./routes/student.route";
 import attendanceRouter from "./routes/attendance.route";
-import historyRouter from "./routes/history.route";
 import timeSlotRouter from "./routes/timeSlot.route";
 import programRouter from "./routes/program.route";
 import subjectRouter from "./routes/subject.route";
 import departmentRouter from "./routes/department.route";
+import sectionRouter from "./routes/section.route";
 app.use("/api/health", healthRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/students", studentRouter);
 app.use("/api/attendance", attendanceRouter);
-app.use("/api/history", historyRouter);
 app.use("/api/time-slots", timeSlotRouter);
 app.use("/api/programs", programRouter);
 app.use("/api/subjects", subjectRouter);
 app.use("/api/departments", departmentRouter);
+app.use("/api/sections", sectionRouter);
 
 // Global error handling middleware - must be after all routes
 app.use(
