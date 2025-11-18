@@ -68,10 +68,14 @@ const AttendanceRecordSchema = new mongoose.Schema<IAttendanceRecord>(
   { timestamps: true }
 );
 
-AttendanceRecordSchema.index(
-  { student: 1, date: 1, subject: 1, timeSlot: 1 },
-  { unique: true }
-);
+AttendanceRecordSchema.index({
+  student: 1,
+  date: 1,
+  subject: 1,
+  timeSlot: 1,
+  section: 1,
+  semester: 1,
+});
 
 const AttendanceRecord = mongoose.model<IAttendanceRecord>(
   "AttendanceRecord",
