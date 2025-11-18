@@ -3,8 +3,6 @@ import mongoose from "mongoose";
 interface IStudent extends mongoose.Document {
   name: string;
   enrollment: string;
-  email: string;
-  scholarNo: string;
   section: string;
   semester: number;
   year: number;
@@ -19,8 +17,6 @@ const StudentSchema = new mongoose.Schema<IStudent>(
   {
     name: { type: String, required: true, trim: true },
     enrollment: { type: String, required: true, unique: true, trim: true },
-    email: { type: String, required: true, unique: true, trim: true },
-    scholarNo: { type: String, required: true, unique: true, trim: true },
     section: { type: String, required: true, trim: true },
     semester: { type: Number, required: true },
     year: { type: Number, required: true },
