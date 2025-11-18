@@ -1,0 +1,26 @@
+# Render Blueprint for Acro-CMS Backend
+
+services:
+  - type: web
+    name: acro-cms-backend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 
+          fromEnv: PORT
+      - key: MONGO_URL
+        fromService:
+          name: mongodb
+          property: connectionString.standardSrv
+    plan: free
+    numInstances: 1
+
+databases:
+  - name: mongodb
+    databaseName: acro-cms
+    user: acro-cms-user
+    plan: free
