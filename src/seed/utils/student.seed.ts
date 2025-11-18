@@ -37,8 +37,6 @@ export const seedStudents = async () => {
         await Student.create({
           name: student.name,
           enrollment: student.enrollment,
-          scholarNo: student.scholarNo,
-          email: student.email,
           semester: student.semester,
           year: student.year,
           section: student.section,
