@@ -94,6 +94,23 @@ export const markAttendance = asyncHandler(
     if (!subject) throw new ApiError(404, "Subject not found");
     if (!timeSlot) throw new ApiError(404, "TimeSlot not found");
 
+    const existingAttendance = await AttendanceRecord.findOne({
+      subject: subject._id,
+      date: attendanceDate,
+      program: program._id,
+      department: department._id,
+      section: section,
+      semester: semester,
+      timeSlot: timeSlot._id,
+    }).lean();
+
+    if (existingAttendance) {
+      throw new ApiError(
+        409,
+        `Attendance has already been marked for this subject (${subjectCode}) on ${date} for section ${section} during this time slot.`
+      );
+    }
+
     // --- 4. Prepare Bulk Operations ---
     const recordBulkOps: any[] = [];
     const summaryUpdatesMap = new Map<string, any>();
