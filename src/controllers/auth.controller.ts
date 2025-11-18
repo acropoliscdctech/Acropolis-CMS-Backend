@@ -33,7 +33,7 @@ export const login = asyncHandler(async (req, res) => {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? "none" : "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 day
   });
   return res
     .status(200)
@@ -42,7 +42,11 @@ export const login = asyncHandler(async (req, res) => {
 
 // logout user controller
 export const logout = asyncHandler(async (req, res) => {
-  res.clearCookie("token");
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+  });
   return res
     .status(200)
     .json(new ApiResponse(200, {}, "Logged out successfully"));
