@@ -8,6 +8,7 @@ import { Student } from "../models/student.model";
 import { AcademicProgram } from "../models/academicProgram.model";
 import { Department } from "../models/department.model";
 
+// find students by filter controller
 export const findStudentsByFilter = asyncHandler(
   async (req: Request, res: Response) => {
     const { programShortName, year, deptShortName, section } = req.query;
@@ -46,7 +47,7 @@ export const findStudentsByFilter = asyncHandler(
       department: department._id,
       year: yearNum,
       section: section as string,
-      status: "active", // Only fetch active students
+      status: "active",
     };
 
     const students = await Student.find(studentFilters)

@@ -2,6 +2,7 @@ import asyncHandler from "../utils/async-handler";
 import ApiResponse from "../utils/response";
 import { Department } from "../models/department.model";
 
+// get all departments controller
 export const getAllDepartments = asyncHandler(async (req, res) => {
   const departments = await Department.find()
     .select("name shortName")

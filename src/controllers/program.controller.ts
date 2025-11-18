@@ -2,6 +2,7 @@ import asyncHandler from "../utils/async-handler";
 import ApiResponse from "../utils/response";
 import { AcademicProgram } from "../models/academicProgram.model";
 
+// get all programs controller
 export const getAllPrograms = asyncHandler(async (req, res) => {
   const programs = await AcademicProgram.find()
     .select("name shortName")

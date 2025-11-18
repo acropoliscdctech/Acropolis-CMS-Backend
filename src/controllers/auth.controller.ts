@@ -9,6 +9,7 @@ interface AuthenticatedRequest extends Request {
   user?: IFaculty;
 }
 
+// login user controller
 export const login = asyncHandler(async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
@@ -35,6 +36,7 @@ export const login = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, { user }, "Login successful"));
 });
 
+// logout user controller
 export const logout = asyncHandler(async (req, res) => {
   res.clearCookie("token");
   return res
@@ -42,6 +44,7 @@ export const logout = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Logged out successfully"));
 });
 
+// checkAuth controller
 export const checkAuth = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const user = req.user;

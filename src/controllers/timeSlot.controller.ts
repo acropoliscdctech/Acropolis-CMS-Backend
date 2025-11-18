@@ -2,8 +2,8 @@ import { TimeSlot } from "../models/timeSlot.model";
 import { Request, Response } from "express";
 import asyncHandler from "../utils/async-handler";
 import ApiResponse from "../utils/response";
-import ApiError from "../utils/error";
 
+// get all time slots controller
 export const getAllTimeSlots = asyncHandler(
   async (req: Request, res: Response) => {
     const timeSlots = await TimeSlot.find().sort({ periodNumber: 1 });
