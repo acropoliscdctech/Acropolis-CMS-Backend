@@ -19,10 +19,7 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: [
-      "https://acropolis-cms-backend-1.onrender.com",
-      "http://localhost:5173",
-    ],
+    origin: ["https://acropolis-cms.vercel.app", "http://localhost:5173"],
     credentials: true,
   })
 );
