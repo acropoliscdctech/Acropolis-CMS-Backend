@@ -6,7 +6,6 @@ interface IFaculty extends mongoose.Document {
   email: string;
   username: string;
   password: string;
-  department: mongoose.Types.ObjectId;
   designation: string;
   createdAt: Date;
   updatedAt: Date;
@@ -20,11 +19,6 @@ const FacultySchema = new mongoose.Schema<IFaculty>(
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     designation: { type: String, required: true },
-    department: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Department",
-      required: true,
-    },
   },
   { timestamps: true }
 );

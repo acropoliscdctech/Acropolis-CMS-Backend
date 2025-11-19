@@ -9,6 +9,9 @@ interface AuthenticatedRequest extends Request {
   user?: IFaculty;
 }
 
+const isProduction = process.env.ENVIRONMENT === "production";
+
+// login user controller
 export const login = asyncHandler(async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
@@ -28,20 +31,28 @@ export const login = asyncHandler(async (req, res) => {
   const token = generateToken(String(user._id), "faculty");
   res.cookie("token", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 day
   });
   return res
     .status(200)
     .json(new ApiResponse(200, { user }, "Login successful"));
 });
 
+// logout user controller
 export const logout = asyncHandler(async (req, res) => {
-  res.clearCookie("token");
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+  });
   return res
     .status(200)
     .json(new ApiResponse(200, {}, "Logged out successfully"));
 });
 
+// checkAuth controller
 export const checkAuth = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const user = req.user;

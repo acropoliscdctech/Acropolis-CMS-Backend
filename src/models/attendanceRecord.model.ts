@@ -7,8 +7,9 @@ interface IAttendanceRecord extends mongoose.Document {
   markedBy: mongoose.Types.ObjectId;
   program: mongoose.Types.ObjectId;
   department: mongoose.Types.ObjectId;
-  section: mongoose.Types.ObjectId;
+  section: string;
   subject: mongoose.Types.ObjectId;
+  timeSlot: mongoose.Types.ObjectId;
   semester: number;
   createdAt: Date;
   updatedAt: Date;
@@ -30,9 +31,19 @@ const AttendanceRecordSchema = new mongoose.Schema<IAttendanceRecord>(
       enum: ["present", "absent"],
       required: true,
     },
+    subject: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Subject",
+      required: true,
+    },
+    timeSlot: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "TimeSlot",
+      required: true,
+    },
     program: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "AcademicProgram",
+      ref: "Program",
       required: true,
     },
     department: {
@@ -41,13 +52,7 @@ const AttendanceRecordSchema = new mongoose.Schema<IAttendanceRecord>(
       required: true,
     },
     section: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Section",
-      required: true,
-    },
-    subject: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Subject",
+      type: String,
       required: true,
     },
     semester: {
@@ -62,6 +67,15 @@ const AttendanceRecordSchema = new mongoose.Schema<IAttendanceRecord>(
   },
   { timestamps: true }
 );
+
+AttendanceRecordSchema.index({
+  student: 1,
+  date: 1,
+  subject: 1,
+  timeSlot: 1,
+  section: 1,
+  semester: 1,
+});
 
 const AttendanceRecord = mongoose.model<IAttendanceRecord>(
   "AttendanceRecord",

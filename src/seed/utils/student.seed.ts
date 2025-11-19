@@ -37,15 +37,12 @@ export const seedStudents = async () => {
         await Student.create({
           name: student.name,
           enrollment: student.enrollment,
-          scholarNo: student.scholarNo,
-          email: student.email,
           semester: student.semester,
           year: student.year,
           section: student.section,
           status: student.status || "active", // Default to active
           department: dept._id, // Use the found ObjectId
           program: prog._id, // Use the found ObjectId
-          enrolledClasses: [], // Initially empty
         });
         console.log(`Created new student: ${student.enrollment}`);
       } catch (error: any) {
