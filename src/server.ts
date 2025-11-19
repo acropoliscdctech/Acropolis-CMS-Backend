@@ -1,10 +1,10 @@
-import app from "./src/app";
+import app from "./app";
 
 // server port
 const PORT = process.env.PORT || 3000;
 
 // database connection
-import { connectDb } from "./src/config/database";
+import { connectDb } from "./config/database";
 
 connectDb()
   .then(() => {

@@ -1,4 +1,11 @@
 import mongoose from "mongoose";
+import dotenv from "dotenv";
+import path from "path";
+
+const envFile =
+  process.env.NODE_ENV === "production" ? "production" : "development";
+
+dotenv.config({ path: `.env.${envFile}.local` });
 
 // database connection function
 export const connectDb = async () => {
