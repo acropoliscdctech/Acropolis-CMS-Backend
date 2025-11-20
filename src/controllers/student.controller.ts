@@ -11,17 +11,22 @@ import { Department } from "../models/department.model";
 // find students by filter controller
 export const findStudentsByFilter = asyncHandler(
   async (req: Request, res: Response) => {
-    const { programShortName, year, deptShortName, section } = req.query;
-    if (!programShortName || !year || !deptShortName || !section) {
+    const { programShortName, year, deptShortName, section ,semester} = req.query;
+    if (!programShortName || !year || !deptShortName || !section || !semester) {
       throw new ApiError(
         400,
-        "Missing required filters: programId, year, departmentId, and section are required."
+        "Missing required filters: programId, year, departmentId,section and semester are required."
       );
     }
     const yearNum = parseInt(year as string);
+    const semesterNum = parseInt(semester as string);
     if (isNaN(yearNum)) {
       throw new ApiError(400, "Invalid year provided.");
     }
+    if(isNaN(semesterNum)){
+      throw new ApiError(400, "Invalid semester provided.");
+    }
+
 
     const program = await AcademicProgram.findOne({
       shortName: programShortName as string,
@@ -47,6 +52,7 @@ export const findStudentsByFilter = asyncHandler(
       department: department._id,
       year: yearNum,
       section: section as string,
+      semester : semesterNum,
       status: "active",
     };
 
