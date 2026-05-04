@@ -11,6 +11,10 @@ const router = Router();
 router.post("/mark", authenticateFaculty, markAttendance);
 router.get("/summary", authenticateFaculty, getAttendanceSummaryForStudents);
 router.get("/session-details", authenticateFaculty, getHistorySessionDetails);
-router.get("/student-history", authenticateFaculty, getStudentAttendanceHistory);
+router.get(
+  "/student-history",
+  authenticateFaculty,
+  getStudentAttendanceHistory,
+);
 
 export default router;

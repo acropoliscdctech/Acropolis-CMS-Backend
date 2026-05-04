@@ -107,7 +107,7 @@ export const markAttendance = asyncHandler(
     if (existingAttendance) {
       throw new ApiError(
         409,
-        `Attendance has already been marked for this subject (${subjectCode}) on ${date} for section ${section} during this time slot.`
+        `Attendance has already been marked for this subject (${subjectCode}) on ${date} for section ${section} during this time slot.`,
       );
     }
 
@@ -122,7 +122,7 @@ export const markAttendance = asyncHandler(
         !["present", "absent"].includes(record.status)
       ) {
         console.warn(
-          `Invalid data skipped: studentId=${record.studentId}, status=${record.status}`
+          `Invalid data skipped: studentId=${record.studentId}, status=${record.status}`,
         );
         continue;
       }
@@ -190,7 +190,7 @@ export const markAttendance = asyncHandler(
 
     let recordResult, summaryResult;
     const finalSummaryBulkOps = Array.from(summaryUpdatesMap.values()).map(
-      (op) => ({ updateOne: op })
+      (op) => ({ updateOne: op }),
     );
 
     if (recordBulkOps.length > 0) {
@@ -212,10 +212,10 @@ export const markAttendance = asyncHandler(
           recordResult,
           summaryResult,
         },
-        "Attendance marked successfully"
-      )
+        "Attendance marked successfully",
+      ),
     );
-  }
+  },
 );
 
 // get attendance summary for student controller
@@ -227,7 +227,7 @@ export const getAttendanceSummaryForStudents = asyncHandler(
     if (!programShortName || !deptShortName || !year || !semester || !section) {
       throw new ApiError(
         400,
-        "Missing required query parameters: programShortName, deptShortName, year, semester, and section"
+        "Missing required query parameters: programShortName, deptShortName, year, semester, and section",
       );
     }
     const yearNum = parseInt(year as string);
@@ -289,7 +289,7 @@ export const getAttendanceSummaryForStudents = asyncHandler(
     return res
       .status(200)
       .json(new ApiResponse(200, { attendanceSummaries: results }, "Success"));
-  }
+  },
 );
 
 // get history of session details controller
@@ -361,14 +361,14 @@ export const getHistorySessionDetails = asyncHandler(
     if (isNaN(semesterNum)) {
       throw new ApiError(
         400,
-        'Query parameter "semester" must be a valid number.'
+        'Query parameter "semester" must be a valid number.',
       );
     }
 
     if (date && !/\d{4}-\d{2}-\d{2}/.test(date as string)) {
       throw new ApiError(
         400,
-        `Query parameter 'date' must be in YYYY-MM-DD format.`
+        `Query parameter 'date' must be in YYYY-MM-DD format.`,
       );
     }
 
@@ -430,17 +430,23 @@ export const getHistorySessionDetails = asyncHandler(
         new ApiResponse(
           200,
           { records },
-          "Session details retrieved successfully"
-        )
+          "Session details retrieved successfully",
+        ),
       );
-  }
+  },
 );
 
 // get student attendance history controller
 export const getStudentAttendanceHistory = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const { enrollment, programShortName, deptShortName, semester, section, year } =
-      req.query;
+    const {
+      enrollment,
+      programShortName,
+      deptShortName,
+      semester,
+      section,
+      year,
+    } = req.query;
 
     if (
       !enrollment ||
@@ -452,7 +458,7 @@ export const getStudentAttendanceHistory = asyncHandler(
     ) {
       throw new ApiError(
         400,
-        "Missing required query parameters: enrollment, programShortName, deptShortName, year, semester, section"
+        "Missing required query parameters: enrollment, programShortName, deptShortName, year, semester, section",
       );
     }
 
@@ -504,5 +510,5 @@ export const getStudentAttendanceHistory = asyncHandler(
     return res
       .status(200)
       .json(new ApiResponse(200, { student, records }, "Success"));
-  }
+  },
 );
