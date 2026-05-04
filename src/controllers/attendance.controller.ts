@@ -435,3 +435,74 @@ export const getHistorySessionDetails = asyncHandler(
       );
   }
 );
+
+// get student attendance history controller
+export const getStudentAttendanceHistory = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { enrollment, programShortName, deptShortName, semester, section, year } =
+      req.query;
+
+    if (
+      !enrollment ||
+      !programShortName ||
+      !deptShortName ||
+      !semester ||
+      !section ||
+      !year
+    ) {
+      throw new ApiError(
+        400,
+        "Missing required query parameters: enrollment, programShortName, deptShortName, year, semester, section"
+      );
+    }
+
+    const semesterNum = parseInt(semester as string, 10);
+    const yearNum = parseInt(year as string, 10);
+    if (isNaN(semesterNum) || isNaN(yearNum)) {
+      throw new ApiError(400, "Invalid year or semester provided.");
+    }
+
+    const [program, department] = await Promise.all([
+      AcademicProgram.findOne({ shortName: programShortName as string })
+        .select("_id")
+        .lean(),
+      Department.findOne({ shortName: deptShortName as string })
+        .select("_id")
+        .lean(),
+    ]);
+
+    if (!program) throw new ApiError(404, "Program not found");
+    if (!department) throw new ApiError(404, "Department not found");
+
+    const student = await Student.findOne({
+      enrollment: (enrollment as string).trim(),
+      program: program._id,
+      department: department._id,
+      year: yearNum,
+      semester: semesterNum,
+      section: section as string,
+    })
+      .select("_id name enrollment section year semester")
+      .lean();
+
+    if (!student) {
+      throw new ApiError(404, "Student not found for given filters");
+    }
+
+    const records = await AttendanceRecord.find({
+      student: student._id,
+      program: program._id,
+      department: department._id,
+      semester: semesterNum,
+      section: section as string,
+    })
+      .populate("subject", "title subjectCode")
+      .populate("timeSlot", "periodNumber startTime endTime")
+      .sort({ date: -1, createdAt: -1 })
+      .lean();
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, { student, records }, "Success"));
+  }
+);

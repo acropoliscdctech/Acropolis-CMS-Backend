@@ -18,13 +18,13 @@ import { TimeSlot } from "../models/timeSlot.model";
 const importData = async () => {
   try {
     console.log("Starting data import...");
-    await seedPrograms();
-    await seedDepartments();
+    // await seedPrograms();
+    // await seedDepartments();
     await seedFaculties();
-    await seedSubjects();
-    await seedStudents();
-    await seedAttendanceSummaries();
-    await seedTimeSlots();
+    // await seedSubjects();
+    // await seedStudents();
+    // await seedAttendanceSummaries();
+    // await seedTimeSlots();
 
     console.log("Seeding script finished!");
     process.exit(0);

@@ -6,6 +6,8 @@
     "start": "cross-env NODE_ENV=production node dist/server.js",
     "dev": "cross-env NODE_ENV=development nodemon --exec ts-node src/server",
     "build": "npm install && tsc",
+    "migrate:semester:demo": "cross-env NODE_ENV=development ts-node src/migration/semester.update.ts",
+    "migrate:semester:prod": "cross-env NODE_ENV=production ts-node src/migration/semester.update.ts",
     "seed:import:demo": "cross-env NODE_ENV=development ts-node src/seed/seed.ts --import",
     "seed:delete:demo": "cross-env NODE_ENV=development ts-node src/seed/seed.ts --delete",
     "seed:import:prod": "cross-env NODE_ENV=production ts-node src/seed/seed.ts --import",
