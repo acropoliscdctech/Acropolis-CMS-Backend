@@ -512,3 +512,92 @@ export const getStudentAttendanceHistory = asyncHandler(
       .json(new ApiResponse(200, { student, records }, "Success"));
   },
 );
+
+// export attendance summary with date-wise status matrix (for Excel)
+export const exportAttendanceSummaryWithDates = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { programShortName, deptShortName, year, semester, section } =
+      req.query;
+
+    if (!programShortName || !deptShortName || !year || !semester || !section) {
+      throw new ApiError(
+        400,
+        "Missing required query parameters: programShortName, deptShortName, year, semester, section",
+      );
+    }
+
+    const yearNum = parseInt(year as string, 10);
+    const semesterNum = parseInt(semester as string, 10);
+    if (isNaN(yearNum) || isNaN(semesterNum)) {
+      throw new ApiError(400, "Invalid year or semester provided.");
+    }
+
+    const [program, department] = await Promise.all([
+      AcademicProgram.findOne({ shortName: programShortName as string })
+        .select("_id")
+        .lean(),
+      Department.findOne({ shortName: deptShortName as string })
+        .select("_id")
+        .lean(),
+    ]);
+    if (!program) throw new ApiError(404, "Program not found");
+    if (!department) throw new ApiError(404, "Department not found");
+
+    const students = await Student.find({
+      program: program._id,
+      department: department._id,
+      year: yearNum,
+      semester: semesterNum,
+      section: section as string,
+      status: "active",
+    })
+      .select("name enrollment section")
+      .sort({ enrollment: 1 })
+      .lean();
+
+    const studentIds = students.map((s) => s._id);
+
+    const records = await AttendanceRecord.find({
+      student: { $in: studentIds },
+      program: program._id,
+      department: department._id,
+      semester: semesterNum,
+      section: section as string,
+    })
+      .select("student date status")
+      .sort({ date: 1 })
+      .lean();
+
+    // unique dates in YYYY-MM-DD
+    const dateSet = new Set<string>();
+    for (const r of records) {
+      const d = new Date(r.date);
+      d.setUTCHours(0, 0, 0, 0);
+      dateSet.add(d.toISOString().slice(0, 10));
+    }
+    const dates = Array.from(dateSet).sort();
+
+    // map: studentId -> { [date]: 'present'|'absent' }
+    const statusMap = new Map<string, Record<string, string>>();
+    for (const r of records) {
+      const sid = r.student.toString();
+      const d = new Date(r.date);
+      d.setUTCHours(0, 0, 0, 0);
+      const key = d.toISOString().slice(0, 10);
+      if (!statusMap.has(sid)) statusMap.set(sid, {});
+      statusMap.get(sid)![key] = r.status;
+    }
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          dates,
+          students,
+          statusByStudentId: Object.fromEntries(statusMap.entries()),
+        },
+        "Success",
+      ),
+    );
+  },
+);
