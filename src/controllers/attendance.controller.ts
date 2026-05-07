@@ -564,35 +564,62 @@ export const exportAttendanceSummaryWithDates = asyncHandler(
       semester: semesterNum,
       section: section as string,
     })
-      .select("student date status")
+      .select("student date status subject timeSlot markedBy")
+      .populate("subject", "subjectCode title")
+      .populate("timeSlot", "periodNumber startTime endTime")
+      .populate("markedBy", "name")
       .sort({ date: 1 })
       .lean();
 
-    // unique dates in YYYY-MM-DD
-    const dateSet = new Set<string>();
+    // unique session columns (date + period + subject + faculty)
+    const sessionKeySet = new Set<string>();
     for (const r of records) {
       const d = new Date(r.date);
       d.setUTCHours(0, 0, 0, 0);
-      dateSet.add(d.toISOString().slice(0, 10));
-    }
-    const dates = Array.from(dateSet).sort();
+      const dateKey = d.toISOString().slice(0, 10);
 
-    // map: studentId -> { [date]: 'present'|'absent' }
+      const subjectCode = (r.subject as any)?.subjectCode || "SUB";
+      const subjectTitle = (r.subject as any)?.title || "Subject";
+
+      const periodNumber = (r.timeSlot as any)?.periodNumber ?? "-";
+      const startTime = (r.timeSlot as any)?.startTime ?? "";
+      const endTime = (r.timeSlot as any)?.endTime ?? "";
+
+      const facultyName = (r.markedBy as any)?.name || "Faculty";
+
+      const sessionKey = `${dateKey} | P${periodNumber} (${startTime}-${endTime}) (${subjectCode}-${subjectTitle}) (${facultyName})`;
+      sessionKeySet.add(sessionKey);
+    }
+    const sessionKeys = Array.from(sessionKeySet).sort();
+
+    // map: studentId -> { [sessionKey]: 'present'|'absent' }
     const statusMap = new Map<string, Record<string, string>>();
     for (const r of records) {
       const sid = r.student.toString();
       const d = new Date(r.date);
       d.setUTCHours(0, 0, 0, 0);
-      const key = d.toISOString().slice(0, 10);
+      const dateKey = d.toISOString().slice(0, 10);
+
+      const subjectCode = (r.subject as any)?.subjectCode || "SUB";
+      const subjectTitle = (r.subject as any)?.title || "Subject";
+
+      const periodNumber = (r.timeSlot as any)?.periodNumber ?? "-";
+      const startTime = (r.timeSlot as any)?.startTime ?? "";
+      const endTime = (r.timeSlot as any)?.endTime ?? "";
+
+      const facultyName = (r.markedBy as any)?.name || "Faculty";
+
+      const sessionKey = `${dateKey} | P${periodNumber} (${startTime}-${endTime}) (${subjectCode}-${subjectTitle}) (${facultyName})`;
+
       if (!statusMap.has(sid)) statusMap.set(sid, {});
-      statusMap.get(sid)![key] = r.status;
+      statusMap.get(sid)![sessionKey] = r.status;
     }
 
     return res.status(200).json(
       new ApiResponse(
         200,
         {
-          dates,
+          sessionKeys,
           students,
           statusByStudentId: Object.fromEntries(statusMap.entries()),
         },
