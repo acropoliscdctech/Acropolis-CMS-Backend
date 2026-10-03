@@ -12,6 +12,8 @@ import { AttendanceRecord } from "../models/attendanceRecord.model";
 import { AttendanceSummary } from "../models/attendanceSummary.model";
 import { AuthenticatedSuperAdminRequest } from "../middlewares/superAdmin.middleware";
 import bcrypt from "bcrypt";
+import { createHash, randomBytes } from "node:crypto";
+import { sendFacultyPasswordResetEmail } from "../utils/brevo";
 import {
   StudentImportInput,
   validateStudentImportRows,
@@ -215,26 +217,45 @@ export const updateFaculty = asyncHandler(
 export const resetFacultyPassword = asyncHandler(
   async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { newPassword } = req.body;
-
-    if (!newPassword || newPassword.length < 6) {
-      throw new ApiError(
-        400,
-        "New password is required and must be at least 6 characters long",
-      );
-    }
-
     const faculty = await Faculty.findById(id);
     if (!faculty) {
       throw new ApiError(404, "Faculty not found");
     }
 
-    faculty.password = newPassword;
+    const frontendUrl = process.env.FRONTEND_URL?.trim().replace(/\/+$/, "");
+    if (!frontendUrl) {
+      throw new ApiError(500, "FRONTEND_URL is not configured on the server");
+    }
+
+    const rawToken = randomBytes(32).toString("hex");
+    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+    faculty.set({
+      passwordResetTokenHash: tokenHash,
+      passwordResetExpiresAt: new Date(Date.now() + 30 * 60 * 1000),
+    });
     await faculty.save();
+
+    const resetLink = `${frontendUrl}/reset-password#token=${rawToken}`;
+    try {
+      await sendFacultyPasswordResetEmail({
+        email: faculty.email,
+        name: faculty.name,
+        resetLink,
+      });
+    } catch (error) {
+      await Faculty.updateOne(
+        { _id: faculty._id, passwordResetTokenHash: tokenHash },
+        { $unset: { passwordResetTokenHash: 1, passwordResetExpiresAt: 1 } },
+      );
+      throw new ApiError(
+        502,
+        "Could not send the password reset email. Check the Brevo configuration and try again.",
+      );
+    }
 
     return res
       .status(200)
-      .json(new ApiResponse(200, {}, "Faculty password reset successfully"));
+      .json(new ApiResponse(200, {}, "Password reset link sent to faculty email"));
   },
 );
 

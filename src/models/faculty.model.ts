@@ -7,6 +7,8 @@ interface IFaculty extends mongoose.Document {
   username: string;
   password: string;
   designation: string;
+  passwordResetTokenHash?: string;
+  passwordResetExpiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -19,6 +21,8 @@ const FacultySchema = new mongoose.Schema<IFaculty>(
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     designation: { type: String, required: true },
+    passwordResetTokenHash: { type: String, select: false },
+    passwordResetExpiresAt: { type: Date, select: false },
   },
   { timestamps: true }
 );

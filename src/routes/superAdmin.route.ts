@@ -46,7 +46,7 @@ router.get("/faculties", getAllFaculties);
 router.get("/faculties/:id", getFacultyById);
 router.post("/faculties", createFaculty);
 router.put("/faculties/:id", updateFaculty);
-router.put("/faculties/:id/reset-password", resetFacultyPassword);
+router.post("/faculties/:id/reset-password", resetFacultyPassword);
 router.delete("/faculties/:id", deleteFaculty);
 
 // Student routes
