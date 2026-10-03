@@ -18,6 +18,7 @@ import {
   StudentImportInput,
   validateStudentImportRows,
 } from "../utils/studentImport";
+import { upgradeStudents } from "../migration/semester.update";
 
 const getPagination = (query: Request["query"]) => {
   const requestedPage = Number.parseInt(query.page as string, 10);
@@ -275,6 +276,19 @@ export const deleteFaculty = asyncHandler(
 // ==========================================
 // STUDENT MANAGEMENT
 // ==========================================
+export const advanceStudentSemesters = asyncHandler(
+  async (req: Request, res: Response) => {
+    if (req.body?.confirmation !== "ADVANCE SEMESTER") {
+      throw new ApiError(400, 'Type "ADVANCE SEMESTER" to confirm this operation');
+    }
+
+    const result = await upgradeStudents();
+    return res.status(200).json(
+      new ApiResponse(200, result, "Student semesters advanced successfully"),
+    );
+  },
+);
+
 export const previewStudentImport = asyncHandler(
   async (req: Request, res: Response) => {
     const rows = req.body?.rows;
