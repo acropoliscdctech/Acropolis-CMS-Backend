@@ -24,7 +24,7 @@ app.use(
   })
 );
 app.use(cookieParser());
-app.use(express.json());
+app.use(express.json({ limit: "25mb" }));
 
 // logging middleware
 import logger from "./utils/logger";

@@ -12,6 +12,10 @@ import { AttendanceRecord } from "../models/attendanceRecord.model";
 import { AttendanceSummary } from "../models/attendanceSummary.model";
 import { AuthenticatedSuperAdminRequest } from "../middlewares/superAdmin.middleware";
 import bcrypt from "bcrypt";
+import {
+  StudentImportInput,
+  validateStudentImportRows,
+} from "../utils/studentImport";
 
 const getPagination = (query: Request["query"]) => {
   const requestedPage = Number.parseInt(query.page as string, 10);
@@ -250,6 +254,78 @@ export const deleteFaculty = asyncHandler(
 // ==========================================
 // STUDENT MANAGEMENT
 // ==========================================
+export const previewStudentImport = asyncHandler(
+  async (req: Request, res: Response) => {
+    const rows = req.body?.rows;
+    if (!Array.isArray(rows) || rows.length === 0) {
+      throw new ApiError(400, "The spreadsheet does not contain any student rows");
+    }
+    const preview = await validateStudentImportRows(rows as StudentImportInput[]);
+    return res
+      .status(200)
+      .json(new ApiResponse(200, preview, "Student import preview ready"));
+  },
+);
+
+export const commitStudentImport = asyncHandler(
+  async (req: Request, res: Response) => {
+    const rows = req.body?.rows;
+    if (!Array.isArray(rows) || rows.length === 0) {
+      throw new ApiError(400, "There are no valid student rows to import");
+    }
+    const { results } = await validateStudentImportRows(rows as StudentImportInput[]);
+    const validRows = results.filter((result) => result.errors.length === 0);
+    const failed = results
+      .filter((result) => result.errors.length > 0)
+      .map((result) => ({
+        rowNumber: result.rowNumber,
+        enrollment: result.source.enrollment,
+        reason: result.errors.join(" "),
+      }));
+
+    if (!validRows.length) {
+      return res.status(200).json(
+        new ApiResponse(200, { imported: 0, failed }, "No student rows were imported"),
+      );
+    }
+
+    const operations = validRows.map((result) => ({
+      insertOne: { document: result.normalized },
+    }));
+
+    let writeErrors: any[] = [];
+    let insertedCount = validRows.length;
+    try {
+      const writeResult = await Student.bulkWrite(operations as any, { ordered: false });
+      insertedCount = writeResult.insertedCount;
+    } catch (error: any) {
+      writeErrors = error?.writeErrors || error?.result?.getWriteErrors?.() || [];
+      if (!writeErrors.length) throw error;
+      insertedCount = Math.max(0, validRows.length - writeErrors.length);
+    }
+
+    failed.push(...writeErrors.map((writeError) => {
+      const sourceRow = validRows[writeError.index];
+      return {
+        rowNumber: sourceRow?.rowNumber,
+        enrollment: sourceRow?.source.enrollment,
+        reason:
+          writeError.code === 11000
+            ? "Enrollment already exists in the student database."
+            : writeError.errmsg || "This row could not be saved.",
+      };
+    }));
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        { imported: insertedCount, failed },
+        "Student import finished",
+      ),
+    );
+  },
+);
+
 export const getAllStudents = asyncHandler(
   async (req: Request, res: Response) => {
     const { page, limit, skip } = getPagination(req.query);

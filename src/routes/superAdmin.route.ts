@@ -12,6 +12,8 @@ import {
   getAllStudents,
   getStudentById,
   createStudent,
+  previewStudentImport,
+  commitStudentImport,
   updateStudent,
   deleteStudent,
   getAllDepartments,
@@ -50,6 +52,8 @@ router.delete("/faculties/:id", deleteFaculty);
 // Student routes
 router.get("/students", getAllStudents);
 router.get("/students/:id", getStudentById);
+router.post("/students/import/preview", previewStudentImport);
+router.post("/students/import/commit", commitStudentImport);
 router.post("/students", createStudent);
 router.put("/students/:id", updateStudent);
 router.delete("/students/:id", deleteStudent);
