@@ -11,7 +11,9 @@
     "seed:import:demo": "cross-env NODE_ENV=development ts-node src/seed/seed.ts --import",
     "seed:delete:demo": "cross-env NODE_ENV=development ts-node src/seed/seed.ts --delete",
     "seed:import:prod": "cross-env NODE_ENV=production ts-node src/seed/seed.ts --import",
-    "seed:delete:prod": "cross-env NODE_ENV=production ts-node src/seed/seed.ts --delete"
+    "seed:delete:prod": "cross-env NODE_ENV=production ts-node src/seed/seed.ts --delete",
+    "seed:superadmin:demo": "cross-env NODE_ENV=development ts-node src/seed/superAdmin.seed.ts",
+    "seed:superadmin:prod": "cross-env NODE_ENV=production ts-node src/seed/superAdmin.seed.ts"
   },
   "keywords": [],
   "author": "",
